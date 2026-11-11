@@ -74,6 +74,8 @@ Then set `provider` and `model` in the `[ai]` section of your config (see Config
 | `:` | Enter **Command Mode** |
 | `p` | Paste yanked text |
 | `x` | Delete character |
+| `u` | Undo |
+| `Ctrl+R` | Redo |
 
 ### Editor - Insert Mode
 
@@ -87,10 +89,11 @@ Then set `provider` and `model` in the `[ai]` section of your config (see Config
 | Command | Action |
 | :--- | :--- |
 | `:w` / `:s` | Save file |
+| `:w <file>` | Save to a new file (also creates it) |
 | `:q` | Quit |
 | `:wq` / `:x` | Save and quit |
 | `:q!` | Force quit (discard changes) |
-| `:e <file>` | Open a file |
+| `:e <file>` | Open a file (creates it if missing) |
 | `:<number>` | Jump to line number |
 
 ### Editor - Search Mode

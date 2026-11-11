@@ -138,42 +138,39 @@ func fileIcon(name string, isDir bool) string {
 		if name == ".." {
 			return "⮤"
 		}
-		return ""
+		return "📁"
 	}
-	ext := strings.ToLower(filepath.Ext(name))
-	switch ext {
+	switch strings.ToLower(filepath.Ext(name)) {
 	case ".go":
-		return ""
+		return "🐹"
 	case ".js", ".jsx":
-		return ""
+		return "📜"
 	case ".ts", ".tsx":
-		return ""
+		return "📘"
 	case ".py":
-		return ""
+		return "🐍"
 	case ".rs":
-		return ""
+		return "🦀"
 	case ".md":
-		return ""
+		return "📝"
 	case ".json":
-		return ""
+		return "📋"
 	case ".toml", ".yaml", ".yml":
-		return ""
+		return "⚙️"
 	case ".html":
-		return ""
+		return "🌐"
 	case ".css":
-		return ""
+		return "🎨"
 	case ".sh", ".bat", ".ps1":
-		return ""
+		return "🐚"
 	case ".git", ".gitignore":
-		return ""
+		return "🙈"
 	case ".jpg", ".jpeg", ".png", ".gif", ".svg":
-		return ""
-	case ".txt":
-		return ""
+		return "🖼️"
 	case ".mod":
-		return ""
+		return "📦"
 	default:
-		return ""
+		return "📄"
 	}
 }
 

@@ -130,3 +130,94 @@ func TestExecuteCommand(t *testing.T) {
 		t.Error(":42 should not quit")
 	}
 }
+
+func TestWQQuitGuard(t *testing.T) {
+	// A directory as filename always fails to save.
+	dir := t.TempDir()
+	e := NewEditor(config.Commands{}, config.Keys{})
+	e.SetContent("hi", dir)
+	e.modified = true
+	if cmd := e.executeCommand("wq"); cmd != nil {
+		t.Error(":wq should NOT quit when the save fails")
+	}
+	if !e.modified {
+		t.Error(":wq after failed save should leave the buffer marked modified")
+	}
+
+	// A real file: save succeeds, so :wq quits.
+	f := t.TempDir() + "/ok.txt"
+	e.SetContent("hi", f)
+	e.modified = true
+	assertQuit(t, e.executeCommand("wq"), ":wq after successful save")
+}
+
+func TestUndoRedo(t *testing.T) {
+	e := NewEditor(config.Commands{}, config.Keys{})
+	e.SetContent("hello", "f.txt")
+
+	// `x` deletes one char; each delete is its own undo step.
+	e.handleNormalMode(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	if got := e.textarea.Value(); got != "ello" {
+		t.Fatalf("after x: got %q, want %q", got, "ello")
+	}
+	e.handleNormalMode(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	if got := e.textarea.Value(); got != "hello" {
+		t.Errorf("after u: got %q, want %q", got, "hello")
+	}
+	// Redo brings the deletion back.
+	e.handleNormalMode(tea.KeyMsg{Type: tea.KeyCtrlR})
+	if got := e.textarea.Value(); got != "ello" {
+		t.Errorf("after ctrl+r: got %q, want %q", got, "ello")
+	}
+
+	// Insert-mode typing coalesces into one undo step.
+	e = NewEditor(config.DefaultConfig().Commands, config.DefaultConfig().Keys)
+	e.SetContent("hello", "f.txt")
+	e.handleNormalMode(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	e.applyTextareaKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+	e.applyTextareaKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'Y'}})
+	e.handleNormalMode(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	if got := e.textarea.Value(); got != "hello" {
+		t.Errorf("after coalesced undo: got %q, want %q", got, "hello")
+	}
+
+	// Undo on a fresh history says so.
+	e2 := NewEditor(config.Commands{}, config.Keys{})
+	e2.handleNormalMode(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	if e2.msg != "Nothing to undo" {
+		t.Errorf("undo with empty stack: got msg %q", e2.msg)
+	}
+}
+
+func TestOpenNewFile(t *testing.T) {
+	// ":e <missing>" must create an empty, saveable buffer.
+	dir := t.TempDir()
+	missing := dir + "/new.txt"
+	m := InitialModel(dir, config.DefaultConfig())
+	m2, _ := m.Update(OpenFileMsg{Path: missing})
+	got := m2.(Model)
+	if got.editor.filename != missing {
+		t.Errorf("filename = %q, want %q", got.editor.filename, missing)
+	}
+	if got.editor.textarea.Value() != "" {
+		t.Errorf("new buffer should be empty, got %q", got.editor.textarea.Value())
+	}
+	if got.editor.msg != "" {
+		t.Errorf("creating a new file should not show an error, got %q", got.editor.msg)
+	}
+}
+
+func TestFileIcons(t *testing.T) {
+	// Regression: every known extension must render a non-empty icon.
+	for _, name := range []string{"a.go", "a.js", "a.ts", "a.py", "a.rs", "a.md", "a.json", "a.toml", "a.html", "a.css", "a.sh", "a.png", "a.mod", "a.txt", "a.xyz"} {
+		if fileIcon(name, false) == "" {
+			t.Errorf("fileIcon(%q) is empty", name)
+		}
+	}
+	if fileIcon("sub", true) == "" {
+		t.Error("dir icon is empty")
+	}
+	if fileIcon("..", true) != "⮤" {
+		t.Error("parent entry icon changed")
+	}
+}

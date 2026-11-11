@@ -38,7 +38,16 @@ type EditorModel struct {
 	yankBuffer  string
 	searchQuery string
 	searchInput textinput.Model
+	undoStack   []string
+	redoStack   []string
 }
+
+// maxUndoEntries/maxUndoBytes bound undo history so a 10 MB buffer can't
+// balloon into a GB of snapshots.
+const (
+	maxUndoEntries = 100
+	maxUndoBytes   = 64 << 20
+)
 
 // NewEditor creates a new editor model with the given command configuration.
 func NewEditor(cmdConfig config.Commands, keyConfig config.Keys) EditorModel {
@@ -144,6 +153,7 @@ func (m *EditorModel) handleNormalMode(msg tea.KeyMsg) tea.Cmd {
 	switch key {
 	// Enter insert mode
 	case m.keys.EditorInsertMode:
+		m.pushUndo()
 		m.mode = ModeInsert
 		m.textarea.Focus()
 		m.msg = ""
@@ -189,6 +199,7 @@ func (m *EditorModel) handleNormalMode(msg tea.KeyMsg) tea.Cmd {
 		m.textarea.CursorStart()
 	// Insert above/below
 	case "o":
+		m.pushUndo()
 		m.textarea.CursorEnd()
 		cmd := m.applyTextareaKey(tea.KeyMsg{Type: tea.KeyEnter})
 		m.textarea.Focus()
@@ -196,6 +207,7 @@ func (m *EditorModel) handleNormalMode(msg tea.KeyMsg) tea.Cmd {
 		m.modified = true
 		return cmd
 	case "O":
+		m.pushUndo()
 		m.textarea.CursorStart()
 		cmd := m.applyTextareaKey(tea.KeyMsg{Type: tea.KeyEnter})
 		m.moveToLine(m.textarea.Line() - 1)
@@ -206,15 +218,18 @@ func (m *EditorModel) handleNormalMode(msg tea.KeyMsg) tea.Cmd {
 		return cmd
 	// Insert at start/end of line
 	case "A":
+		m.pushUndo()
 		m.textarea.CursorEnd()
 		m.textarea.Focus()
 		m.mode = ModeInsert
 	case "I":
+		m.pushUndo()
 		m.textarea.CursorStart()
 		m.textarea.Focus()
 		m.mode = ModeInsert
 	// Delete char under cursor
 	case "x":
+		m.pushUndo()
 		cmd := m.applyTextareaKey(tea.KeyMsg{Type: tea.KeyDelete})
 		m.modified = true
 		return cmd
@@ -241,11 +256,17 @@ func (m *EditorModel) handleNormalMode(msg tea.KeyMsg) tea.Cmd {
 	// Paste
 	case "p":
 		if m.yankBuffer != "" {
+			m.pushUndo()
 			m.textarea.Focus()
 			m.textarea.InsertString(m.yankBuffer)
 			m.modified = true
 			m.msg = "Pasted"
 		}
+	// Undo / redo
+	case "u":
+		m.undo()
+	case "ctrl+r":
+		m.redo()
 	}
 	return nil
 }
@@ -270,7 +291,15 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 	switch {
 	case val == "wq" || val == "x":
 		m.saveFile()
+		if m.modified {
+			return nil // save failed; stay in the editor so work isn't lost
+		}
 		return tea.Quit
+	case strings.HasPrefix(val, "w "):
+		if path := strings.TrimSpace(strings.TrimPrefix(val, "w ")); path != "" {
+			m.filename = path
+			return m.saveFile()
+		}
 	case slices.Contains(m.commands.Save, val):
 		return m.saveFile()
 	case slices.Contains(m.commands.Quit, val):
@@ -616,7 +645,54 @@ func fileType(filename string) string {
 // SetContent sets the editor content and filename.
 func (m *EditorModel) SetContent(content string, filename string) {
 	m.textarea.SetValue(content)
+	// SetValue leaves the cursor at the end of the inserted text; open at the top.
+	m.textarea.CursorStart()
 	m.filename = filename
 	m.modified = false
 	m.msg = ""
+	// New file, fresh history.
+	m.undoStack = nil
+	m.redoStack = nil
+}
+
+// pushUndo snapshots the buffer before a change so `u` can restore it.
+func (m *EditorModel) pushUndo() {
+	m.undoStack = append(m.undoStack, m.textarea.Value())
+	m.redoStack = nil
+	// Drop oldest snapshots past the entry and memory caps.
+	total := 0
+	for _, s := range m.undoStack {
+		total += len(s)
+	}
+	for (len(m.undoStack) > maxUndoEntries || total > maxUndoBytes) && len(m.undoStack) > 1 {
+		total -= len(m.undoStack[0])
+		m.undoStack = m.undoStack[1:]
+	}
+}
+
+// undo restores the last snapshot; redo re-applies it.
+func (m *EditorModel) undo() {
+	if len(m.undoStack) == 0 {
+		m.msg = "Nothing to undo"
+		return
+	}
+	m.redoStack = append(m.redoStack, m.textarea.Value())
+	m.textarea.SetValue(m.undoStack[len(m.undoStack)-1])
+	m.undoStack = m.undoStack[:len(m.undoStack)-1]
+	// shortcut: undo always marks the buffer modified, even if you undo back
+	// to the saved state; upgrade by diffing against the file on disk.
+	m.modified = true
+	m.msg = "Undone"
+}
+
+func (m *EditorModel) redo() {
+	if len(m.redoStack) == 0 {
+		m.msg = "Nothing to redo"
+		return
+	}
+	m.undoStack = append(m.undoStack, m.textarea.Value())
+	m.textarea.SetValue(m.redoStack[len(m.redoStack)-1])
+	m.redoStack = m.redoStack[:len(m.redoStack)-1]
+	m.modified = true
+	m.msg = "Redone"
 }

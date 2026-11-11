@@ -129,6 +129,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		content, err := os.ReadFile(msg.Path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// ":e <newfile>" starts an empty buffer so it can be saved.
+				m.editor.SetContent("", msg.Path)
+				break
+			}
 			m.editor.msg = "Cannot open: " + err.Error()
 			break
 		}
