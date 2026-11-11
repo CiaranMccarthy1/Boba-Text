@@ -130,6 +130,40 @@ func (m FileTreeModel) Update(msg tea.Msg) (FileTreeModel, tea.Cmd) {
 	return m, nil
 }
 
+type fileKind struct {
+	icon  string
+	label string
+}
+
+// fileKinds is the single source of truth for tree icons and status-bar labels.
+var fileKinds = map[string]fileKind{
+	".go":        {"🐹", "go"},
+	".js":        {"📜", "javascript"},
+	".jsx":       {"📜", "javascript"},
+	".ts":        {"📘", "typescript"},
+	".tsx":       {"📘", "typescript"},
+	".py":        {"🐍", "python"},
+	".rs":        {"🦀", "rust"},
+	".md":        {"📝", "markdown"},
+	".json":      {"📋", "json"},
+	".toml":      {"⚙️", "toml"},
+	".yaml":      {"⚙️", "yaml"},
+	".yml":       {"⚙️", "yaml"},
+	".html":      {"🌐", "html"},
+	".css":       {"🎨", "css"},
+	".sh":        {"🐚", "sh"},
+	".bat":       {"🐚", "bat"},
+	".ps1":       {"🐚", "ps1"},
+	".git":       {"🙈", "git"},
+	".gitignore": {"🙈", "gitignore"},
+	".jpg":       {"🖼️", "jpg"},
+	".jpeg":      {"🖼️", "jpeg"},
+	".png":       {"🖼️", "png"},
+	".gif":       {"🖼️", "gif"},
+	".svg":       {"🖼️", "svg"},
+	".mod":       {"📦", "mod"},
+}
+
 // fileIcon returns an icon for the file based on its extension.
 func fileIcon(name string, isDir bool) string {
 	if isDir {
@@ -138,38 +172,10 @@ func fileIcon(name string, isDir bool) string {
 		}
 		return "📁"
 	}
-	switch strings.ToLower(filepath.Ext(name)) {
-	case ".go":
-		return "🐹"
-	case ".js", ".jsx":
-		return "📜"
-	case ".ts", ".tsx":
-		return "📘"
-	case ".py":
-		return "🐍"
-	case ".rs":
-		return "🦀"
-	case ".md":
-		return "📝"
-	case ".json":
-		return "📋"
-	case ".toml", ".yaml", ".yml":
-		return "⚙️"
-	case ".html":
-		return "🌐"
-	case ".css":
-		return "🎨"
-	case ".sh", ".bat", ".ps1":
-		return "🐚"
-	case ".git", ".gitignore":
-		return "🙈"
-	case ".jpg", ".jpeg", ".png", ".gif", ".svg":
-		return "🖼️"
-	case ".mod":
-		return "📦"
-	default:
-		return "📄"
+	if kind, ok := fileKinds[strings.ToLower(filepath.Ext(name))]; ok {
+		return kind.icon
 	}
+	return "📄"
 }
 
 // View renders the file tree as a string.

@@ -501,6 +501,64 @@ func TestAgentRemembersTurns(t *testing.T) {
 	}
 }
 
+func TestFileType(t *testing.T) {
+	cases := map[string]string{
+		"":         "text",
+		"Makefile": "text",
+		"a.go":     "go",
+		"a.js":     "javascript",
+		"a.ts":     "typescript",
+		"a.py":     "python",
+		"a.rs":     "rust",
+		"a.md":     "markdown",
+		"a.yml":    "yaml",
+		"a.toml":   "toml",
+		"a.xyz":    "xyz",
+		"a.GO":     "go",
+	}
+	for name, want := range cases {
+		if got := fileType(name); got != want {
+			t.Errorf("fileType(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestExpandHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	if got, want := expandHome("~/notes.md"), filepath.Join(home, "notes.md"); got != want {
+		t.Errorf("expandHome(~/notes.md) = %q, want %q", got, want)
+	}
+	if got := expandHome("~"); got != home {
+		t.Errorf("expandHome(~) = %q, want %q", got, home)
+	}
+	for _, path := range []string{"~other/x", "rel/x", "/abs/x"} {
+		if got := expandHome(path); got != path {
+			t.Errorf("expandHome(%q) = %q, want unchanged", path, got)
+		}
+	}
+}
+
+func TestAgentTypingDoesNotScroll(t *testing.T) {
+	a := NewAgent(config.AI{}, config.Keys{})
+	a.SetSize(40, 20)
+	a.messages = []string{strings.Repeat("line\n", 100)}
+	a.renderMessages()
+	a.viewport.SetYOffset(0)
+
+	a, _ = a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if a.viewport.YOffset != 0 {
+		t.Errorf("typing j scrolled the chat to %d", a.viewport.YOffset)
+	}
+
+	a, _ = a.Update(tea.KeyMsg{Type: tea.KeyPgDown})
+	if a.viewport.YOffset == 0 {
+		t.Error("pgdown did not scroll the chat")
+	}
+}
+
 func TestUndoCursorStaysAtEdit(t *testing.T) {
 	cfg := config.DefaultConfig()
 	e := NewEditor(cfg.Commands, cfg.Keys)

@@ -125,7 +125,8 @@ Then set `provider` and `model` in the `[ai]` section of your config (see Config
 
 | Key | Action |
 | :--- | :--- |
-| `Enter` | Send message to Gemini |
+| `Enter` | Send message to the configured AI provider |
+| `PgUp` / `PgDn` | Scroll the reply (mouse wheel also works) |
 
 ## Stack
 

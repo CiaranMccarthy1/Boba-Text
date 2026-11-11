@@ -128,11 +128,14 @@ func DefaultConfig() Config {
 	}
 }
 
+// userConfigDir is a var so tests can point Load at a temp directory.
+var userConfigDir = os.UserConfigDir
+
 // Load attempts to load configuration from local file or home directory, falling back to defaults.
 
 func Load() Config {
 
-	configDir, err := os.UserConfigDir()
+	configDir, err := userConfigDir()
 
 	if err != nil {
 

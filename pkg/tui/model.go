@@ -141,7 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.showWelcome = false
 		m.focus = FocusEditor
 		// Relative paths resolve against the tree's current directory.
-		path := msg.Path
+		path := expandHome(msg.Path)
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(m.fileTree.path, path)
 		}

@@ -302,7 +302,7 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 		return tea.Quit
 	case strings.HasPrefix(val, "w "):
 		if path := strings.TrimSpace(strings.TrimPrefix(val, "w ")); path != "" {
-			m.filename = path
+			m.filename = expandHome(path)
 			return m.saveFile()
 		}
 	case slices.Contains(m.commands.Save, val):
@@ -377,6 +377,21 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// expandHome resolves a leading "~" to the user's home directory.
+func expandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") && !strings.HasPrefix(path, `~\`) {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == "~" {
+		return home
+	}
+	return filepath.Join(home, path[2:])
 }
 
 // applyTextareaKey sends a key message through the textarea to reuse its motion logic.
@@ -621,40 +636,14 @@ func modeName(m EditorMode) string {
 
 // fileType returns a short filetype label based on extension.
 func fileType(filename string) string {
-	if filename == "" {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if kind, ok := fileKinds[ext]; ok {
+		return kind.label
+	}
+	if ext == "" {
 		return "text"
 	}
-	parts := strings.Split(filename, ".")
-	if len(parts) < 2 {
-		return "text"
-	}
-	ext := parts[len(parts)-1]
-	switch ext {
-	case "go":
-		return "go"
-	case "js":
-		return "javascript"
-	case "ts":
-		return "typescript"
-	case "py":
-		return "python"
-	case "rs":
-		return "rust"
-	case "md":
-		return "markdown"
-	case "json":
-		return "json"
-	case "toml":
-		return "toml"
-	case "yaml", "yml":
-		return "yaml"
-	case "html":
-		return "html"
-	case "css":
-		return "css"
-	default:
-		return ext
-	}
+	return ext[1:]
 }
 
 // SetContent sets the editor content and filename.

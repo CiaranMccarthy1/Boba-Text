@@ -6,6 +6,7 @@ import (
 
 	"github.com/CiaranMccarthy1/boba-text/pkg/ai"
 	"github.com/CiaranMccarthy1/boba-text/pkg/config"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -50,6 +51,11 @@ func NewAgent(aiConfig config.AI, keyConfig config.Keys) AgentModel {
 	ta.ShowLineNumbers = false
 
 	vp := viewport.New(0, 0)
+	// Page keys only: j/k/u/d/b/f/space are typing in the prompt, not scrolling.
+	vp.KeyMap = viewport.KeyMap{
+		PageDown: key.NewBinding(key.WithKeys("pgdown")),
+		PageUp:   key.NewBinding(key.WithKeys("pgup")),
+	}
 
 	welcome := lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Boba AI Agent") + "\n\n"
 	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("Ask questions about your code and request refactors.\n\n")
