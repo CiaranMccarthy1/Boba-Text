@@ -234,5 +234,6 @@ func (m FileTreeModel) View() string {
 }
 
 type OpenFileMsg struct {
-	Path string
+	Path  string
+	Force bool
 }

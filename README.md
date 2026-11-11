@@ -23,7 +23,7 @@ go build -o boba-text .
 ./boba-text
 ```
 
-On Windows use `boba-text.exe`, or the batch shortcut:
+Open a file directly with `./boba-text path/to/file`. On Windows use `boba-text.exe`, or the batch shortcut:
 
 ```powershell
 .\boba
@@ -93,6 +93,7 @@ Then set `provider` and `model` in the `[ai]` section of your config (see Config
 | `:wq` / `:x` | Save and quit |
 | `:q!` | Force quit (discard changes) |
 | `:e <file>` | Open a file (creates it if missing) |
+| `:e! <file>` | Open a file, discarding unsaved changes |
 | `:<number>` | Jump to line number |
 
 ### Editor - Search Mode

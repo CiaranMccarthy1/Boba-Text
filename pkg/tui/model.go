@@ -34,25 +34,31 @@ type Model struct {
 	height      int
 	keys        config.Keys
 	startPath   string
+	openFile    string
 }
 
 // InitialModel creates the initial application model with the given configuration.
-func InitialModel(startPath string, cfg config.Config) Model {
+func InitialModel(startPath, openFile string, cfg config.Config) Model {
 	InitStyles(cfg.Colors)
 	return Model{
 		fileTree:    NewFileTree(startPath, cfg.Keys),
 		editor:      NewEditor(cfg.Commands, cfg.Keys),
 		agent:       NewAgent(cfg.AI, cfg.Keys),
-		focus:       FocusFileTree,
+		focus:       FocusEditor,
 		showTree:    true,
 		showWelcome: true,
 		keys:        cfg.Keys,
 		startPath:   startPath,
+		openFile:    openFile,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.fileTree.Init(), m.editor.Init(), m.agent.Init())
+	cmds := []tea.Cmd{m.fileTree.Init(), m.editor.Init(), m.agent.Init()}
+	if m.openFile != "" {
+		cmds = append(cmds, func() tea.Msg { return OpenFileMsg{Path: m.openFile} })
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -61,10 +67,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Dismiss welcome screen on any key
+		// The first key dismisses the welcome screen and is then handled normally,
+		// so "Press i to start editing" works on the first press.
 		if m.showWelcome {
 			m.showWelcome = false
-			return m, nil
 		}
 
 		switch msg.String() {
@@ -123,6 +129,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case OpenFileMsg:
+		if m.editor.modified && !msg.Force {
+			m.editor.msg = "Unsaved changes (use :e! to discard)"
+			return m, nil
+		}
 		m.showWelcome = false
 		m.focus = FocusEditor
 		// Relative paths resolve against the tree's current directory.

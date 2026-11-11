@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -132,6 +133,21 @@ func TestExecuteCommand(t *testing.T) {
 	if cmd := e.executeCommand("42"); cmd != nil {
 		t.Error(":42 should not quit")
 	}
+
+	// :e! forces a discard; :e keeps the unsaved-changes guard.
+	cmd := e.executeCommand("e! foo.txt")
+	if cmd == nil {
+		t.Fatal(":e! should return an open command")
+	}
+	msg, ok := cmd().(OpenFileMsg)
+	if !ok || msg.Path != "foo.txt" || !msg.Force {
+		t.Errorf(":e!: got %#v, want an OpenFileMsg{Path: %q, Force: true}", msg, "foo.txt")
+	}
+	if cmd := e.executeCommand("e foo.txt"); cmd == nil {
+		t.Fatal(":e should return an open command")
+	} else if msg := cmd().(OpenFileMsg); msg.Force {
+		t.Error(":e should not force-discard unsaved changes")
+	}
 }
 
 func TestWQQuitGuard(t *testing.T) {
@@ -196,7 +212,7 @@ func TestOpenNewFile(t *testing.T) {
 	// ":e <missing>" must create an empty, saveable buffer.
 	dir := t.TempDir()
 	missing := dir + "/new.txt"
-	m := InitialModel(dir, config.DefaultConfig())
+	m := InitialModel(dir, "", config.DefaultConfig())
 	m2, _ := m.Update(OpenFileMsg{Path: missing})
 	got := m2.(Model)
 	if got.editor.filename != missing {
@@ -216,7 +232,7 @@ func TestOpenRelativePath(t *testing.T) {
 	if err := os.WriteFile(abs, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	m := InitialModel(dir, config.DefaultConfig())
+	m := InitialModel(dir, "", config.DefaultConfig())
 	m2, _ := m.Update(OpenFileMsg{Path: "rel.txt"})
 	if got := m2.(Model).editor.filename; got != abs {
 		t.Errorf("filename = %q, want %q (resolved against the tree)", got, abs)
@@ -229,7 +245,7 @@ func TestBinaryFileRefused(t *testing.T) {
 	if err := os.WriteFile(bin, []byte("abc\x00def"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	m := InitialModel(dir, config.DefaultConfig())
+	m := InitialModel(dir, "", config.DefaultConfig())
 	m2, _ := m.Update(OpenFileMsg{Path: bin})
 	got := m2.(Model)
 	if got.editor.filename != "" {
@@ -267,5 +283,128 @@ func TestFileIcons(t *testing.T) {
 	}
 	if fileIcon("..", true) != "⮤" {
 		t.Error("parent entry icon changed")
+	}
+}
+
+func TestWriteFileAtomic(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f.txt")
+	if err := os.WriteFile(path, []byte("old"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(path, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || string(got) != "new" {
+		t.Fatalf("content = %q, %v; want %q", got, err, "new")
+	}
+	if info, err := os.Stat(path); err == nil && info.Mode().Perm() != 0o640 {
+		t.Errorf("mode = %v, want 0640 preserved", info.Mode().Perm())
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("left %d files behind, want only f.txt", len(entries))
+	}
+}
+
+func TestWriteFileAtomicKeepsSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need extra privileges on Windows")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.txt")
+	link := filepath.Join(dir, "link.txt")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileAtomic(link, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("save replaced the symlink with a regular file")
+	}
+	if got, err := os.ReadFile(target); err != nil || string(got) != "new" {
+		t.Fatalf("target content = %q, %v; want %q", got, err, "new")
+	}
+}
+
+func TestUnsavedChangesGuard(t *testing.T) {
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.txt")
+	b := filepath.Join(dir, "b.txt")
+	for _, f := range []string{a, b} {
+		if err := os.WriteFile(f, []byte("content"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := InitialModel(dir, "", config.DefaultConfig())
+	m2, _ := m.Update(OpenFileMsg{Path: a})
+	m = m2.(Model)
+	m.editor.textarea.SetValue("edited")
+	m.editor.modified = true
+
+	// Opening another file must not replace the unsaved buffer.
+	m2, _ = m.Update(OpenFileMsg{Path: b})
+	m = m2.(Model)
+	if m.editor.filename != a {
+		t.Errorf("unsaved buffer was replaced: filename = %q, want %q", m.editor.filename, a)
+	}
+	if !strings.Contains(m.editor.msg, "Unsaved") {
+		t.Errorf("msg = %q, want an unsaved-changes warning", m.editor.msg)
+	}
+
+	// :e! discards and opens the new file.
+	m2, _ = m.Update(OpenFileMsg{Path: b, Force: true})
+	m = m2.(Model)
+	if m.editor.filename != b || m.editor.textarea.Value() != "content" {
+		t.Errorf("force open: got (%q, %q), want (%q, %q)", m.editor.filename, m.editor.textarea.Value(), b, "content")
+	}
+}
+
+func TestInitOpensFile(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "x.txt")
+	m := InitialModel(filepath.Dir(file), file, config.DefaultConfig())
+	cmd := m.Init()
+	if cmd == nil {
+		t.Fatal("Init returned no command")
+	}
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("Init returned %T, want tea.BatchMsg", cmd())
+	}
+	for _, c := range batch {
+		if c == nil {
+			continue
+		}
+		if msg, ok := c().(OpenFileMsg); ok {
+			if msg.Path != file {
+				t.Errorf("OpenFileMsg path = %q, want %q", msg.Path, file)
+			}
+			return
+		}
+	}
+	t.Error("Init did not schedule an OpenFileMsg for the command-line file")
+}
+
+func TestWelcomeKeyStartsInsert(t *testing.T) {
+	m := InitialModel(t.TempDir(), "", config.DefaultConfig())
+	if m.focus != FocusEditor {
+		t.Errorf("initial focus = %v, want FocusEditor", m.focus)
+	}
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	got := m2.(Model)
+	if got.showWelcome {
+		t.Error("welcome screen still showing after a key")
+	}
+	if got.editor.mode != ModeInsert {
+		t.Errorf("mode = %v, want ModeInsert after pressing i on the welcome screen", got.editor.mode)
 	}
 }

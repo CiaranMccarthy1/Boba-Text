@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -314,6 +315,12 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 		return tea.Quit
 	case val == "q!":
 		return tea.Quit
+	case strings.HasPrefix(val, "e!"):
+		path := strings.TrimSpace(strings.TrimPrefix(val, "e!"))
+		if path != "" {
+			return func() tea.Msg { return OpenFileMsg{Path: path, Force: true} }
+		}
+		m.msg = "Usage: :e! <filename>"
 	case strings.HasPrefix(val, "e "):
 		path := strings.TrimPrefix(val, "e ")
 		path = strings.TrimSpace(path)
@@ -329,18 +336,47 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 
 // saveFile writes the editor content to disk.
 func (m *EditorModel) saveFile() tea.Cmd {
-	if m.filename != "" {
-		err := os.WriteFile(m.filename, []byte(m.textarea.Value()), 0644)
-		if err != nil {
-			m.msg = "Error saving: " + err.Error()
-		} else {
-			m.msg = "Saved: " + m.filename
-			m.modified = false
-		}
-	} else {
+	if m.filename == "" {
 		m.msg = "No filename set!"
+		return nil
+	}
+	if err := writeFileAtomic(m.filename, []byte(m.textarea.Value())); err != nil {
+		m.msg = "Error saving: " + err.Error()
+	} else {
+		m.msg = "Saved: " + m.filename
+		m.modified = false
 	}
 	return nil
+}
+
+// writeFileAtomic writes via a temp file and rename so a full disk or a crash
+// mid-save cannot truncate the original file.
+func writeFileAtomic(path string, data []byte) error {
+	// Write through symlinks instead of replacing them with a regular file.
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".boba-*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op once the rename succeeds
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(mode); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 // applyTextareaKey sends a key message through the textarea to reuse its motion logic.
