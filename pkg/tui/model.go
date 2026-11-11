@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -105,6 +106,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focus == FocusAgent {
 				m.focus = FocusEditor
 			} else {
+				// Refresh the AI context with what's actually on screen.
+				m.agent.SetCurrentFile(m.editor.filename, m.editor.textarea.Value())
 				m.focus = FocusAgent
 			}
 			return m, nil
@@ -122,23 +125,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case OpenFileMsg:
 		m.showWelcome = false
 		m.focus = FocusEditor
-		info, err := os.Stat(msg.Path)
+		// Relative paths resolve against the tree's current directory.
+		path := msg.Path
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(m.fileTree.path, path)
+		}
+		info, err := os.Stat(path)
 		if err == nil && info.Size() > maxOpenFileBytes {
-			m.editor.msg = fmt.Sprintf("File too large (%d MB): %s", info.Size()/(1024*1024), msg.Path)
+			m.editor.msg = fmt.Sprintf("File too large (%d MB): %s", info.Size()/(1024*1024), path)
 			break
 		}
-		content, err := os.ReadFile(msg.Path)
+		content, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				// ":e <newfile>" starts an empty buffer so it can be saved.
-				m.editor.SetContent("", msg.Path)
+				m.editor.SetContent("", path)
 				break
 			}
 			m.editor.msg = "Cannot open: " + err.Error()
 			break
 		}
-		m.editor.SetContent(string(content), msg.Path)
-		m.agent.SetCurrentFile(msg.Path)
+		head := content
+		if len(head) > 8192 {
+			head = head[:8192]
+		}
+		if bytes.IndexByte(head, 0) >= 0 {
+			m.editor.msg = "Binary file: " + path
+			break
+		}
+		m.editor.SetContent(string(content), path)
+		m.agent.SetCurrentFile(path, m.editor.textarea.Value())
 	}
 
 	switch m.focus {

@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/CiaranMccarthy1/boba-text/pkg/config"
@@ -204,6 +207,51 @@ func TestOpenNewFile(t *testing.T) {
 	}
 	if got.editor.msg != "" {
 		t.Errorf("creating a new file should not show an error, got %q", got.editor.msg)
+	}
+}
+
+func TestOpenRelativePath(t *testing.T) {
+	dir := t.TempDir()
+	abs := filepath.Join(dir, "rel.txt")
+	if err := os.WriteFile(abs, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := InitialModel(dir, config.DefaultConfig())
+	m2, _ := m.Update(OpenFileMsg{Path: "rel.txt"})
+	if got := m2.(Model).editor.filename; got != abs {
+		t.Errorf("filename = %q, want %q (resolved against the tree)", got, abs)
+	}
+}
+
+func TestBinaryFileRefused(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "bin.dat")
+	if err := os.WriteFile(bin, []byte("abc\x00def"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := InitialModel(dir, config.DefaultConfig())
+	m2, _ := m.Update(OpenFileMsg{Path: bin})
+	got := m2.(Model)
+	if got.editor.filename != "" {
+		t.Error("binary file was loaded into the editor")
+	}
+	if !strings.Contains(got.editor.msg, "Binary") {
+		t.Errorf("msg = %q, want a Binary warning", got.editor.msg)
+	}
+}
+
+func TestInsertArrowNotModified(t *testing.T) {
+	cfg := config.DefaultConfig()
+	e := NewEditor(cfg.Commands, cfg.Keys)
+	e.SetContent("hello", "f.txt")
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyUp})
+	if e.modified {
+		t.Error("arrow key in insert mode marked the buffer modified")
+	}
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+	if !e.modified {
+		t.Error("typing did not mark the buffer modified")
 	}
 }
 

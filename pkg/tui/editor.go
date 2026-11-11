@@ -101,9 +101,13 @@ func (m EditorModel) Update(msg tea.Msg) (EditorModel, tea.Cmd) {
 				m.mode = ModeNormal
 				m.msg = ""
 			default:
+				before := m.textarea.Value()
 				m.textarea, cmd = m.textarea.Update(msg)
 				cmds = append(cmds, cmd)
-				m.modified = true
+				// Arrow keys etc. don't change content; only real edits mark it.
+				if !m.modified {
+					m.modified = m.textarea.Value() != before
+				}
 			}
 		case ModeCommand:
 			switch msg.String() {

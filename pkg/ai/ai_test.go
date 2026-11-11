@@ -1,13 +1,12 @@
 package ai
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestSendUnknownProvider(t *testing.T) {
-	if _, err := Send("gpt5-nonsense", "x", "", "hi"); err == nil || !strings.Contains(err.Error(), "unknown AI provider") {
+	if _, err := Send("gpt5-nonsense", "x", "", "", "hi"); err == nil || !strings.Contains(err.Error(), "unknown AI provider") {
 		t.Errorf("Send with unknown provider: got err=%v, want unknown-provider error", err)
 	}
 }
@@ -21,30 +20,24 @@ func TestSendMissingKey(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Setenv(c.env, "")
-		if _, err := Send(c.provider, "model", "", "hi"); err == nil || !strings.Contains(err.Error(), c.env) {
+		if _, err := Send(c.provider, "model", "", "", "hi"); err == nil || !strings.Contains(err.Error(), c.env) {
 			t.Errorf("Send(%q) without key: got err=%v, want %q missing error", c.provider, err, c.env)
 		}
 	}
 }
 
 func TestBuildPrompt(t *testing.T) {
-	if got := buildPrompt("", "hi"); got != "hi" {
+	if got := buildPrompt("", "", "hi"); got != "hi" {
 		t.Errorf("buildPrompt without file: got %q", got)
 	}
-	dir := t.TempDir()
-	file := dir + "/f.txt"
-	if err := os.WriteFile(file, []byte(strings.Repeat("a", maxFileBytes+10)), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got := buildPrompt(file, "hi")
+	got := buildPrompt("f.txt", strings.Repeat("a", maxFileBytes+10), "hi")
 	if !strings.Contains(got, "hi") {
 		t.Fatal("buildPrompt: prompt missing")
 	}
-	// Count only the fenced file content (snippet + its trailing newline), not
-	// the (random-named) file path.
+	// Count only the fenced content (snippet + its trailing newline).
 	start := strings.Index(got, "```") + len("```\n")
 	end := strings.LastIndex(got, "```")
 	if n := end - start; n != maxFileBytes+1 {
-		t.Errorf("buildPrompt: file content is %d bytes, want capped %d (+1 for trailing newline)", n, maxFileBytes)
+		t.Errorf("buildPrompt: content is %d bytes, want capped %d (+1 for trailing newline)", n, maxFileBytes)
 	}
 }

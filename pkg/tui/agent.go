@@ -31,6 +31,7 @@ type AgentModel struct {
 	keys        config.Keys
 	waiting     bool
 	currentFile string
+	fileContent string
 }
 
 // NewAgent creates a new AI agent model with the given configuration.
@@ -114,7 +115,7 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 			m.viewport.GotoBottom()
 
 			return m, tea.Batch(tiCmd, vpCmd, func() tea.Msg {
-				resp, err := ai.Send(m.config.Provider, m.config.Model, m.currentFile, userInput)
+				resp, err := ai.Send(m.config.Provider, m.config.Model, m.currentFile, m.fileContent, userInput)
 				return AIResponseMsg{Response: resp, Err: err}
 			})
 		}
@@ -147,7 +148,8 @@ func (m *AgentModel) SetSize(w, h int) {
 	m.viewport.Height = h - m.textarea.Height() - 4
 }
 
-// SetCurrentFile tells the agent what file is currently open in the editor.
-func (m *AgentModel) SetCurrentFile(path string) {
+// SetCurrentFile tells the agent which file the editor shows and what it contains.
+func (m *AgentModel) SetCurrentFile(path, content string) {
 	m.currentFile = path
+	m.fileContent = content
 }

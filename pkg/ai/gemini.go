@@ -27,6 +27,9 @@ type geminiResponse struct {
 	} `json:"error"`
 }
 
+// geminiEndpoint is a var so tests can point it at a local server.
+var geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
+
 // gemini calls the Google Gemini generateContent API.
 func gemini(model string, prompt string) (string, error) {
 	apiKey, err := requireKey("GEMINI_API_KEY")
@@ -52,7 +55,7 @@ func gemini(model string, prompt string) (string, error) {
 	}
 
 	// Header instead of URL query so the key can't leak into proxy/server logs.
-	respBytes, err := post("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent",
+	respBytes, err := post(fmt.Sprintf(geminiEndpoint, model),
 		map[string]string{"x-goog-api-key": apiKey}, body)
 	if err != nil {
 		return "", err

@@ -16,9 +16,9 @@ import (
 // maxFileBytes caps how much file content is included in one prompt.
 const maxFileBytes = 50 * 1024
 
-// Send sends prompt (plus the current file's content, capped) to the provider.
-func Send(provider, model, currentFile, prompt string) (string, error) {
-	fullPrompt := buildPrompt(currentFile, prompt)
+// Send sends prompt plus the current buffer's content to the provider.
+func Send(provider, model, fileName, content, prompt string) (string, error) {
+	fullPrompt := buildPrompt(fileName, content, prompt)
 
 	switch strings.ToLower(provider) {
 	case "openai":
@@ -34,22 +34,17 @@ func Send(provider, model, currentFile, prompt string) (string, error) {
 	}
 }
 
-// buildPrompt prepends the current file's content (capped) to the user's prompt.
-func buildPrompt(currentFile, prompt string) string {
-	if currentFile == "" {
+// buildPrompt prepends the buffer's content (capped) to the user's prompt.
+func buildPrompt(fileName, content, prompt string) string {
+	if fileName == "" {
 		return prompt
 	}
-	content, err := os.ReadFile(currentFile)
-	if err != nil {
-		return prompt
-	}
-	snippet := content
-	if len(snippet) > maxFileBytes {
-		snippet = snippet[:maxFileBytes]
+	if len(content) > maxFileBytes {
+		content = content[:maxFileBytes]
 	}
 	return fmt.Sprintf(
 		"The user is editing the file '%s' with this content:\n```\n%s\n```\n\nUser request: %s\n\nRespond concisely. If suggesting code changes, show the relevant diff or snippet.",
-		currentFile, string(snippet), prompt,
+		fileName, content, prompt,
 	)
 }
 

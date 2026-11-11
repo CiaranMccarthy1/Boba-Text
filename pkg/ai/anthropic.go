@@ -20,6 +20,9 @@ type anthropicResponse struct {
 	} `json:"error"`
 }
 
+// anthropicEndpoint is a var so tests can point it at a local server.
+var anthropicEndpoint = "https://api.anthropic.com/v1/messages"
+
 // anthropic calls the Anthropic (Claude) messages API.
 func anthropic(model string, prompt string) (string, error) {
 	apiKey, err := requireKey("ANTHROPIC_API_KEY")
@@ -36,7 +39,7 @@ func anthropic(model string, prompt string) (string, error) {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	respBytes, err := post("https://api.anthropic.com/v1/messages", map[string]string{
+	respBytes, err := post(anthropicEndpoint, map[string]string{
 		"x-api-key":         apiKey,
 		"anthropic-version": "2023-06-01",
 	}, body)
