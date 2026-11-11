@@ -517,24 +517,19 @@ func byteIndexToRuneIndex(s string, byteIndex int) int {
 func (m EditorModel) View() string {
 	// Build the status line (Neovim lualine-style)
 	var barContent string
-	var modeStyle lipgloss.Style
 
-	if m.mode == ModeCommand {
+	switch m.mode {
+	case ModeCommand:
 		barContent = m.textinput.View()
-		modeStyle = StyleModeCommand
-	} else if m.mode == ModeSearch {
+	case ModeSearch:
 		barContent = m.searchInput.View()
-		modeStyle = StyleModeCommand
-	} else {
+	default:
 		modeTxt := modeName(m.mode)
-		switch m.mode {
-		case ModeInsert:
+		modeStyle := StyleModeNormal
+		if m.mode == ModeInsert {
 			modeStyle = StyleModeInsert
-		default:
-			modeStyle = StyleModeNormal
 		}
 
-		// File info section
 		fname := m.filename
 		if fname == "" {
 			fname = "[No Name]"
@@ -543,7 +538,6 @@ func (m EditorModel) View() string {
 		if m.modified {
 			modifiedMark = " [+]"
 		}
-
 		msgInfo := ""
 		if m.msg != "" {
 			msgInfo = "  " + m.msg
@@ -554,27 +548,8 @@ func (m EditorModel) View() string {
 		barContent = fmt.Sprintf("%s %s%s%s%s",
 			modeStyle.Render(" "+modeTxt+" "),
 			fname, modifiedMark, msgInfo, statusRight)
-		// Return early with full status bar
-		statusBar := lipgloss.NewStyle().
-			Foreground(ColorText).
-			Background(lipgloss.Color("#2A2A2A")).
-			Width(m.width).
-			Padding(0, 0).
-			Render(barContent)
-
-		return StyleEditor.
-			Width(m.width).
-			Height(m.height).
-			Render(
-				lipgloss.JoinVertical(
-					lipgloss.Left,
-					m.textarea.View(),
-					statusBar,
-				),
-			)
 	}
 
-	// Command/Search mode status bar
 	statusBar := lipgloss.NewStyle().
 		Foreground(ColorText).
 		Background(lipgloss.Color("#2A2A2A")).

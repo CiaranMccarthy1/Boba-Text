@@ -13,18 +13,17 @@ A modern, **Neovim-inspired** terminal code editor with a built-in **AI agent** 
 - **Neovim-Style Status Line** - lualine-inspired bar showing mode, filename, modified state, and filetype
 - **Welcome Screen** - ASCII art splash on startup (like alpha.nvim)
 - **Configurable** - Full TOML config for colors, keys, AI, and commands
-- **Instant Startup** - Pre-compiled binary for zero-latency launch
 
 ## Quick Start
 
 **Build & Run:**
 
-```powershell
-go build -o boba-text.exe .
-./boba-text.exe
+```sh
+go build -o boba-text .
+./boba-text
 ```
 
-**Or use the batch shortcut (Windows):**
+On Windows use `boba-text.exe`, or the batch shortcut:
 
 ```powershell
 .\boba

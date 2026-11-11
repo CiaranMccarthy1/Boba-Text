@@ -14,21 +14,19 @@ var (
 	ColorSuccess   lipgloss.Color
 	ColorWarning   lipgloss.Color
 	ColorError     lipgloss.Color
-	ColorDark      lipgloss.Color
 
-	StyleDim         lipgloss.Style
-	StyleBold        lipgloss.Style
-	StyleSelected    lipgloss.Style
-	StyleFileTree    lipgloss.Style
-	StyleEditor      lipgloss.Style
-	StyleAgent       lipgloss.Style
-	StyleModeNormal  lipgloss.Style
-	StyleModeInsert  lipgloss.Style
-	StyleModeCommand lipgloss.Style
-	StyleWelcome     lipgloss.Style
-	StyleWelcomeDim  lipgloss.Style
-	StyleFileIcon    lipgloss.Style
-	StyleDirIcon     lipgloss.Style
+	StyleDim        lipgloss.Style
+	StyleBold       lipgloss.Style
+	StyleSelected   lipgloss.Style
+	StyleFileTree   lipgloss.Style
+	StyleEditor     lipgloss.Style
+	StyleAgent      lipgloss.Style
+	StyleModeNormal lipgloss.Style
+	StyleModeInsert lipgloss.Style
+	StyleWelcome    lipgloss.Style
+	StyleWelcomeDim lipgloss.Style
+	StyleFileIcon   lipgloss.Style
+	StyleDirIcon    lipgloss.Style
 )
 
 // InitStyles initializes all global styles with the given color configuration.
@@ -41,7 +39,6 @@ func InitStyles(c config.Colors) {
 	ColorSuccess = lipgloss.Color(c.Success)
 	ColorWarning = lipgloss.Color(c.Warning)
 	ColorError = lipgloss.Color(c.Error)
-	ColorDark = lipgloss.Color(c.Dark)
 
 	StyleDim = lipgloss.NewStyle().Foreground(ColorSubText)
 	StyleBold = lipgloss.NewStyle().Bold(true).Foreground(ColorText)
@@ -69,12 +66,6 @@ func InitStyles(c config.Colors) {
 	StyleModeInsert = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#1E1E1E")).
 		Background(ColorSuccess).
-		Bold(true).
-		Padding(0, 1)
-
-	StyleModeCommand = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#1E1E1E")).
-		Background(ColorWarning).
 		Bold(true).
 		Padding(0, 1)
 

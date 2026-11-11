@@ -29,14 +29,13 @@ func (e parentDirEntry) Type() fs.FileMode { return fs.ModeDir }
 func (e parentDirEntry) Info() (fs.FileInfo, error) { return nil, nil }
 
 type FileTreeModel struct {
-	path     string
-	files    []os.DirEntry
-	cursor   int
-	selected string
-	width    int
-	height   int
-	msg      string
-	keys     config.Keys
+	path   string
+	files  []os.DirEntry
+	cursor int
+	width  int
+	height int
+	msg    string
+	keys   config.Keys
 }
 
 // NewFileTree creates a new file tree model starting at the given path.
@@ -115,7 +114,6 @@ func (m FileTreeModel) Update(msg tea.Msg) (FileTreeModel, tea.Cmd) {
 				m.loadFiles()
 				m.cursor = 0
 			} else {
-				m.selected = newPath
 				return m, func() tea.Msg {
 					return OpenFileMsg{Path: newPath}
 				}

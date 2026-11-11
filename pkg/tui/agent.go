@@ -95,8 +95,7 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 			aiMsg := m.aiStyle.Render(aiName+": ") + msg.Response
 			m.messages = append(m.messages, aiMsg)
 		}
-		m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
-		m.viewport.GotoBottom()
+		m.renderMessages()
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -110,9 +109,8 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 
 			// Send to the configured AI provider asynchronously
 			m.waiting = true
-			m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
+			m.renderMessages()
 			m.textarea.Reset()
-			m.viewport.GotoBottom()
 
 			return m, tea.Batch(tiCmd, vpCmd, func() tea.Msg {
 				resp, err := ai.Send(m.config.Provider, m.config.Model, m.currentFile, m.fileContent, userInput)
@@ -146,6 +144,20 @@ func (m *AgentModel) SetSize(w, h int) {
 	m.textarea.SetWidth(w)
 	m.viewport.Width = w
 	m.viewport.Height = h - m.textarea.Height() - 4
+	m.renderMessages()
+}
+
+// renderMessages re-wraps the chat to the pane width so long replies aren't clipped.
+func (m *AgentModel) renderMessages() {
+	if len(m.messages) == 0 {
+		return // keep the welcome text set in NewAgent
+	}
+	text := strings.Join(m.messages, "\n\n")
+	if w := m.viewport.Width - 2; w > 0 {
+		text = lipgloss.NewStyle().Width(w).Render(text)
+	}
+	m.viewport.SetContent(text)
+	m.viewport.GotoBottom()
 }
 
 // SetCurrentFile tells the agent which file the editor shows and what it contains.

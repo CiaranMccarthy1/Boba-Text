@@ -25,8 +25,6 @@ type Colors struct {
 	Warning string `toml:"warning"`
 
 	Error string `toml:"error"`
-
-	Dark string `toml:"dark"`
 }
 
 type Keys struct {
@@ -96,7 +94,6 @@ func DefaultConfig() Config {
 			Success:   "#98C379", // Green
 			Warning:   "#E5C07B", // Yellow
 			Error:     "#E06C75", // Red
-			Dark:      "#1E1E1E",
 		},
 		Keys: Keys{
 			ToggleTree:        "ctrl+t",
@@ -166,5 +163,3 @@ func Load() Config {
 	return cfg
 
 }
-
-//Test comment
