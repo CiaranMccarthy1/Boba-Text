@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -224,6 +225,9 @@ func TestOpenNewFile(t *testing.T) {
 	if got.editor.msg != "" {
 		t.Errorf("creating a new file should not show an error, got %q", got.editor.msg)
 	}
+	if got.agent.currentFile != missing {
+		t.Errorf("agent.currentFile = %q, want %q", got.agent.currentFile, missing)
+	}
 }
 
 func TestOpenRelativePath(t *testing.T) {
@@ -406,5 +410,114 @@ func TestWelcomeKeyStartsInsert(t *testing.T) {
 	}
 	if got.editor.mode != ModeInsert {
 		t.Errorf("mode = %v, want ModeInsert after pressing i on the welcome screen", got.editor.mode)
+	}
+}
+
+func TestToggleTreeMovesFocus(t *testing.T) {
+	m := InitialModel(t.TempDir(), "", config.DefaultConfig())
+	m.focus = FocusFileTree
+	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlT})
+	got := m2.(Model)
+	if got.showTree {
+		t.Fatal("tree still shown after Ctrl+T")
+	}
+	if got.focus != FocusEditor {
+		t.Errorf("focus = %v, want FocusEditor after hiding the focused tree", got.focus)
+	}
+}
+
+func TestQuitWarningVisibleFromAgent(t *testing.T) {
+	m := InitialModel(t.TempDir(), "", config.DefaultConfig())
+	m.focus = FocusAgent
+	m.editor.modified = true
+	m2, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd != nil {
+		t.Error("Ctrl+C with unsaved changes should not quit")
+	}
+	got := m2.(Model)
+	if got.focus != FocusEditor {
+		t.Errorf("focus = %v, want FocusEditor so the warning is visible", got.focus)
+	}
+	if !strings.Contains(got.editor.msg, "No write") {
+		t.Errorf("msg = %q, want the no-write warning", got.editor.msg)
+	}
+}
+
+func TestAgentHistoryAndFileContext(t *testing.T) {
+	a := NewAgent(config.AI{}, config.Keys{})
+	a.SetCurrentFile("f.go", "old")
+	if file, content := a.fileContext(); file != "f.go" || content != "old" {
+		t.Errorf("first context = (%q, %q), want (f.go, old)", file, content)
+	}
+
+	// Once the model has seen it, don't resend an unchanged file.
+	a.sentFile, a.sentContent = "f.go", "old"
+	if file, _ := a.fileContext(); file != "" {
+		t.Errorf("unchanged file resent: %q", file)
+	}
+
+	// An edit makes the file context fresh again.
+	a.SetCurrentFile("f.go", "new")
+	if file, content := a.fileContext(); file != "f.go" || content != "new" {
+		t.Errorf("after edit context = (%q, %q), want (f.go, new)", file, content)
+	}
+
+	// A different file starts a new conversation.
+	a.history = []string{"User: hi", "Assistant: hello"}
+	a.SetCurrentFile("g.go", "")
+	if len(a.history) != 0 {
+		t.Errorf("history = %v, want reset on file switch", a.history)
+	}
+
+	// The transcript stays bounded.
+	for i := 0; i < maxHistoryEntries+10; i++ {
+		a.history = append(a.history, "User: x")
+	}
+	a.trimHistory()
+	if len(a.history) > maxHistoryEntries {
+		t.Errorf("history has %d entries, want <= %d", len(a.history), maxHistoryEntries)
+	}
+}
+
+func TestAgentRemembersTurns(t *testing.T) {
+	a := NewAgent(config.AI{}, config.Keys{})
+	a.currentFile, a.fileContent = "f.go", "code"
+	a.pendingUser, a.pendingFile, a.pendingContent = "explain", "f.go", "code"
+
+	a, _ = a.Update(AIResponseMsg{Response: "it is code"})
+	if len(a.history) != 2 || a.history[0] != "User: explain" || a.history[1] != "Assistant: it is code" {
+		t.Errorf("history = %v, want one remembered turn", a.history)
+	}
+	if a.sentFile != "f.go" || a.sentContent != "code" {
+		t.Errorf("sent = (%q, %q), want the file marked as seen", a.sentFile, a.sentContent)
+	}
+
+	// A failed request is not remembered as a turn.
+	a.history = nil
+	a.pendingUser = "again"
+	a, _ = a.Update(AIResponseMsg{Err: errors.New("boom")})
+	if len(a.history) != 0 {
+		t.Errorf("history after an error = %v, want empty", a.history)
+	}
+}
+
+func TestUndoCursorStaysAtEdit(t *testing.T) {
+	cfg := config.DefaultConfig()
+	e := NewEditor(cfg.Commands, cfg.Keys)
+	e.SetContent("aaa\nbbb\nccc", "f.txt")
+
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'X'}})
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	if got := e.textarea.Value(); got != "aaa\nbbb\nccc" {
+		t.Fatalf("undo: got %q", got)
+	}
+
+	// Typing now must land at the edit (top), not at the end of the buffer.
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	e, _ = e.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'Y'}})
+	if got := e.textarea.Value(); !strings.HasPrefix(got, "Yaaa") {
+		t.Errorf("after undo the cursor is not at the edit: %q", got)
 	}
 }

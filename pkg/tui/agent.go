@@ -19,19 +19,25 @@ type AIResponseMsg struct {
 }
 
 type AgentModel struct {
-	viewport    viewport.Model
-	textarea    textarea.Model
-	messages    []string
-	senderStyle lipgloss.Style
-	aiStyle     lipgloss.Style
-	errorStyle  lipgloss.Style
-	width       int
-	height      int
-	config      config.AI
-	keys        config.Keys
-	waiting     bool
-	currentFile string
-	fileContent string
+	viewport       viewport.Model
+	textarea       textarea.Model
+	messages       []string
+	senderStyle    lipgloss.Style
+	aiStyle        lipgloss.Style
+	errorStyle     lipgloss.Style
+	width          int
+	height         int
+	config         config.AI
+	keys           config.Keys
+	waiting        bool
+	currentFile    string
+	fileContent    string
+	history        []string // plain "User: ..." / "Assistant: ..." turns
+	sentFile       string   // file context included in the last successful request
+	sentContent    string
+	pendingUser    string
+	pendingFile    string
+	pendingContent string
 }
 
 // NewAgent creates a new AI agent model with the given configuration.
@@ -94,7 +100,16 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 			}
 			aiMsg := m.aiStyle.Render(aiName+": ") + msg.Response
 			m.messages = append(m.messages, aiMsg)
+			// Remember the turn so follow-up questions have context, and mark the
+			// file version the model has actually seen. Skip it if the user
+			// switched files while the request was in flight.
+			if m.pendingFile == m.currentFile {
+				m.history = append(m.history, "User: "+m.pendingUser, "Assistant: "+msg.Response)
+				m.sentFile, m.sentContent = m.pendingFile, m.pendingContent
+			}
+			m.trimHistory()
 		}
+		m.pendingUser = ""
 		m.renderMessages()
 
 	case tea.KeyMsg:
@@ -111,9 +126,12 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 			m.waiting = true
 			m.renderMessages()
 			m.textarea.Reset()
+			m.pendingUser = userInput
+			m.pendingFile, m.pendingContent = m.currentFile, m.fileContent
+			fileName, content := m.fileContext()
 
 			return m, tea.Batch(tiCmd, vpCmd, func() tea.Msg {
-				resp, err := ai.Send(m.config.Provider, m.config.Model, m.currentFile, m.fileContent, userInput)
+				resp, err := ai.Send(m.config.Provider, m.config.Model, fileName, content, userInput, m.history)
 				return AIResponseMsg{Response: resp, Err: err}
 			})
 		}
@@ -162,6 +180,37 @@ func (m *AgentModel) renderMessages() {
 
 // SetCurrentFile tells the agent which file the editor shows and what it contains.
 func (m *AgentModel) SetCurrentFile(path, content string) {
+	if path != m.currentFile {
+		// Different file, fresh conversation and file context.
+		m.history = nil
+		m.sentFile, m.sentContent = "", ""
+	}
 	m.currentFile = path
 	m.fileContent = content
+}
+
+// fileContext returns the file to attach to the next request, or "" when the
+// model has already seen this exact version (first turn or after an edit).
+func (m *AgentModel) fileContext() (string, string) {
+	if m.currentFile == "" || (m.currentFile == m.sentFile && m.fileContent == m.sentContent) {
+		return "", ""
+	}
+	return m.currentFile, m.fileContent
+}
+
+const (
+	maxHistoryEntries = 20
+	maxHistoryBytes   = 32 << 10
+)
+
+// trimHistory keeps the transcript bounded so long chats can't grow forever.
+func (m *AgentModel) trimHistory() {
+	total := 0
+	for _, h := range m.history {
+		total += len(h)
+	}
+	for len(m.history) > 0 && (len(m.history) > maxHistoryEntries || total > maxHistoryBytes) {
+		total -= len(m.history[0])
+		m.history = m.history[1:]
+	}
 }

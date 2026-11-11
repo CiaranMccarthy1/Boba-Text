@@ -77,6 +77,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.keys.Quit:
 			if m.editor.modified {
 				m.editor.msg = "No write since last change (use :q!)"
+				// Show the warning in the editor, even if the agent had focus.
+				m.focus = FocusEditor
 				return m, nil
 			}
 			return m, tea.Quit
@@ -93,6 +95,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case m.keys.ToggleTree:
 			m.showTree = !m.showTree
+			if !m.showTree && m.focus == FocusFileTree {
+				m.focus = FocusEditor
+			}
 			m.resizePanes()
 			return m, nil
 
@@ -150,6 +155,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if os.IsNotExist(err) {
 				// ":e <newfile>" starts an empty buffer so it can be saved.
 				m.editor.SetContent("", path)
+				m.agent.SetCurrentFile(path, "")
 				break
 			}
 			m.editor.msg = "Cannot open: " + err.Error()

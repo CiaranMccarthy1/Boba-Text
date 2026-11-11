@@ -16,20 +16,29 @@ A modern, **Neovim-inspired** terminal code editor with a built-in **AI agent** 
 
 ## Quick Start
 
-**Build & Run:**
+**Install with Go:**
+
+```sh
+go install github.com/CiaranMccarthy1/boba-text@latest
+boba-text
+```
+
+**Or build from source:**
 
 ```sh
 go build -o boba-text .
 ./boba-text
 ```
 
-Open a file directly with `./boba-text path/to/file`. On Windows use `boba-text.exe`, or the batch shortcut:
+Open a file directly with `./boba-text path/to/file`, or print the version with `./boba-text --version`. On Windows use `boba-text.exe`, or the batch shortcut:
 
 ```powershell
 .\boba
 ```
 
-## AI Agent Setup - In progress
+## AI Agent Setup
+
+The agent remembers the conversation and sends the current file only on the first message or after you edit it. Your prompt and that file content are sent to the selected provider.
 
 Set the API key env var for your chosen provider:
 

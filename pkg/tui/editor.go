@@ -660,8 +660,8 @@ func fileType(filename string) string {
 // SetContent sets the editor content and filename.
 func (m *EditorModel) SetContent(content string, filename string) {
 	m.textarea.SetValue(content)
-	// SetValue leaves the cursor at the end of the inserted text; open at the top.
-	m.textarea.CursorStart()
+	// SetValue leaves the cursor on the last line; open at the top.
+	m.cursorToTop()
 	m.filename = filename
 	m.modified = false
 	m.msg = ""
@@ -691,8 +691,10 @@ func (m *EditorModel) undo() {
 		m.msg = "Nothing to undo"
 		return
 	}
-	m.redoStack = append(m.redoStack, m.textarea.Value())
+	before := m.textarea.Value()
+	m.redoStack = append(m.redoStack, before)
 	m.textarea.SetValue(m.undoStack[len(m.undoStack)-1])
+	m.restoreCursor(before)
 	m.undoStack = m.undoStack[:len(m.undoStack)-1]
 	// shortcut: undo always marks the buffer modified, even if you undo back
 	// to the saved state; upgrade by diffing against the file on disk.
@@ -705,9 +707,41 @@ func (m *EditorModel) redo() {
 		m.msg = "Nothing to redo"
 		return
 	}
-	m.undoStack = append(m.undoStack, m.textarea.Value())
+	before := m.textarea.Value()
+	m.undoStack = append(m.undoStack, before)
 	m.textarea.SetValue(m.redoStack[len(m.redoStack)-1])
+	m.restoreCursor(before)
 	m.redoStack = m.redoStack[:len(m.redoStack)-1]
 	m.modified = true
 	m.msg = "Redone"
+}
+
+// restoreCursor puts the cursor on the first line that changed. SetValue leaves
+// it at the end of the buffer, which throws the view to EOF on every undo.
+func (m *EditorModel) restoreCursor(before string) {
+	after := m.textarea.Value()
+	if before == after {
+		return
+	}
+	i := 0
+	for i < len(before) && i < len(after) && before[i] == after[i] {
+		i++
+	}
+	prefix := before[:i]
+	row := strings.Count(prefix, "\n")
+	col := utf8.RuneCountInString(prefix[strings.LastIndex(prefix, "\n")+1:])
+	// SetValue leaves the cursor on the last line; walk up to the changed one.
+	for n := m.textarea.LineCount() - 1 - row; n > 0; n-- {
+		m.textarea.CursorUp()
+	}
+	m.textarea.SetCursor(col)
+}
+
+// cursorToTop moves the cursor to the start of the first line. The textarea
+// has no row setter, and SetValue leaves the cursor on the last line.
+func (m *EditorModel) cursorToTop() {
+	for n := m.textarea.LineCount() - 1; n > 0; n-- {
+		m.textarea.CursorUp()
+	}
+	m.textarea.SetCursor(0)
 }

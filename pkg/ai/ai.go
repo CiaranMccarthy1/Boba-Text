@@ -1,5 +1,6 @@
-// Package ai sends a one-shot prompt to the configured LLM provider
-// (Gemini, OpenAI, Claude/Anthropic or OpenRouter) and returns the reply text.
+// Package ai sends prompts (with optional conversation history and file
+// context) to the configured LLM provider (Gemini, OpenAI, Claude/Anthropic or
+// OpenRouter) and returns the reply text.
 package ai
 
 import (
@@ -16,9 +17,10 @@ import (
 // maxFileBytes caps how much file content is included in one prompt.
 const maxFileBytes = 50 * 1024
 
-// Send sends prompt plus the current buffer's content to the provider.
-func Send(provider, model, fileName, content, prompt string) (string, error) {
-	fullPrompt := buildPrompt(fileName, content, prompt)
+// Send sends prompt plus the conversation so far and, when needed, the
+// current buffer's content to the provider.
+func Send(provider, model, fileName, content, prompt string, history []string) (string, error) {
+	fullPrompt := buildPrompt(fileName, content, prompt, history)
 
 	switch strings.ToLower(provider) {
 	case "openai":
@@ -34,18 +36,32 @@ func Send(provider, model, fileName, content, prompt string) (string, error) {
 	}
 }
 
-// buildPrompt prepends the buffer's content (capped) to the user's prompt.
-func buildPrompt(fileName, content, prompt string) string {
+// buildPrompt prepends the conversation history and the buffer's content
+// (capped) to the user's prompt.
+func buildPrompt(fileName, content, prompt string, history []string) string {
+	var b strings.Builder
+	if len(history) > 0 {
+		// shortcut: history is sent as plain text, not provider-native message
+		// arrays; upgrade if role separation or per-message token accounting matters.
+		b.WriteString("Conversation so far:\n")
+		for _, turn := range history {
+			b.WriteString(turn)
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
 	if fileName == "" {
-		return prompt
+		b.WriteString(prompt)
+		return b.String()
 	}
 	if len(content) > maxFileBytes {
 		content = content[:maxFileBytes]
 	}
-	return fmt.Sprintf(
+	fmt.Fprintf(&b,
 		"The user is editing the file '%s' with this content:\n```\n%s\n```\n\nUser request: %s\n\nRespond concisely. If suggesting code changes, show the relevant diff or snippet.",
 		fileName, content, prompt,
 	)
+	return b.String()
 }
 
 // post sends body as JSON with headers and returns the response body,
