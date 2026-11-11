@@ -16,33 +16,19 @@ var (
 	ColorError     lipgloss.Color
 	ColorDark      lipgloss.Color
 
-	StyleNormal         lipgloss.Style
-	StyleDim            lipgloss.Style
-	StyleBold           lipgloss.Style
-	StyleSelected       lipgloss.Style
-	StyleActiveBorder   lipgloss.Style
-	StyleInactiveBorder lipgloss.Style
-	StyleFileTree       lipgloss.Style
-	StyleEditor         lipgloss.Style
-	StyleAgent          lipgloss.Style
-
-	// New styles for Neovim features
-	StyleTabActive   lipgloss.Style
-	StyleTabInactive lipgloss.Style
-	StyleTabBar      lipgloss.Style
-	StyleStatusLine  lipgloss.Style
+	StyleDim         lipgloss.Style
+	StyleBold        lipgloss.Style
+	StyleSelected    lipgloss.Style
+	StyleFileTree    lipgloss.Style
+	StyleEditor      lipgloss.Style
+	StyleAgent       lipgloss.Style
 	StyleModeNormal  lipgloss.Style
 	StyleModeInsert  lipgloss.Style
-	StyleModeVisual  lipgloss.Style
 	StyleModeCommand lipgloss.Style
-	StyleSearch      lipgloss.Style
 	StyleWelcome     lipgloss.Style
 	StyleWelcomeDim  lipgloss.Style
-	StyleLineNumber  lipgloss.Style
-	StyleCursorLine  lipgloss.Style
 	StyleFileIcon    lipgloss.Style
 	StyleDirIcon     lipgloss.Style
-	StyleModified    lipgloss.Style
 )
 
 // InitStyles initializes all global styles with the given color configuration.
@@ -57,21 +43,12 @@ func InitStyles(c config.Colors) {
 	ColorError = lipgloss.Color(c.Error)
 	ColorDark = lipgloss.Color(c.Dark)
 
-	StyleNormal = lipgloss.NewStyle().Foreground(ColorText)
 	StyleDim = lipgloss.NewStyle().Foreground(ColorSubText)
 	StyleBold = lipgloss.NewStyle().Bold(true).Foreground(ColorText)
 
 	StyleSelected = lipgloss.NewStyle().
 		Foreground(ColorPrimary).
 		Bold(true)
-
-	StyleActiveBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorPrimary)
-
-	StyleInactiveBorder = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorSubText)
 
 	StyleFileTree = lipgloss.NewStyle().
 		Padding(1, 2)
@@ -80,28 +57,6 @@ func InitStyles(c config.Colors) {
 		Padding(0, 1)
 
 	StyleAgent = lipgloss.NewStyle().
-		Padding(0, 1)
-
-	// Tab bar styles
-	StyleTabActive = lipgloss.NewStyle().
-		Foreground(ColorText).
-		Background(ColorPrimary).
-		Bold(true).
-		Padding(0, 2)
-
-	StyleTabInactive = lipgloss.NewStyle().
-		Foreground(ColorSubText).
-		Background(lipgloss.Color("#2A2A2A")).
-		Padding(0, 2)
-
-	StyleTabBar = lipgloss.NewStyle().
-		Background(lipgloss.Color("#1A1A1A")).
-		Padding(0, 0)
-
-	// Status line
-	StyleStatusLine = lipgloss.NewStyle().
-		Foreground(ColorText).
-		Background(lipgloss.Color("#2A2A2A")).
 		Padding(0, 1)
 
 	// Mode indicators (Neovim-style lualine colors)
@@ -117,23 +72,11 @@ func InitStyles(c config.Colors) {
 		Bold(true).
 		Padding(0, 1)
 
-	StyleModeVisual = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#1E1E1E")).
-		Background(ColorSecondary).
-		Bold(true).
-		Padding(0, 1)
-
 	StyleModeCommand = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#1E1E1E")).
 		Background(ColorWarning).
 		Bold(true).
 		Padding(0, 1)
-
-	// Search highlight
-	StyleSearch = lipgloss.NewStyle().
-		Background(ColorWarning).
-		Foreground(lipgloss.Color("#1E1E1E")).
-		Bold(true)
 
 	// Welcome screen
 	StyleWelcome = lipgloss.NewStyle().
@@ -144,25 +87,10 @@ func InitStyles(c config.Colors) {
 		Foreground(ColorSubText).
 		Italic(true)
 
-	// Line numbers
-	StyleLineNumber = lipgloss.NewStyle().
-		Foreground(ColorSubText).
-		Width(4).
-		Align(lipgloss.Right)
-
-	// Cursor line highlight
-	StyleCursorLine = lipgloss.NewStyle().
-		Background(lipgloss.Color("#2A2A2A"))
-
 	// File tree icons
 	StyleFileIcon = lipgloss.NewStyle().
 		Foreground(ColorAccent)
 
 	StyleDirIcon = lipgloss.NewStyle().
 		Foreground(ColorWarning)
-
-	// Modified indicator
-	StyleModified = lipgloss.NewStyle().
-		Foreground(ColorWarning).
-		Bold(true)
 }

@@ -188,10 +188,10 @@ func (m FileTreeModel) View() string {
 	if sepWidth < 1 {
 		sepWidth = 1
 	}
-	s.WriteString(StyleDim.Render(" " + strings.Repeat("─", sepWidth)) + "\n")
+	s.WriteString(StyleDim.Render(" "+strings.Repeat("─", sepWidth)) + "\n")
 
 	if m.msg != "" {
-		s.WriteString(StyleDim.Render(" " + m.msg) + "\n")
+		s.WriteString(StyleDim.Render(" "+m.msg) + "\n")
 	}
 
 	visible := m.height - 4

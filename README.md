@@ -1,6 +1,6 @@
 # Boba Text
 
-A modern, **Neovim-inspired** terminal code editor with a built-in **Gemini AI agent**. Built with Go, Bubble Tea, and Lipgloss.
+A modern, **Neovim-inspired** terminal code editor with a built-in **AI agent** (Gemini, OpenAI, Claude, or OpenRouter). Built with Go, Bubble Tea, and Lipgloss.
 
 ## Features
 
@@ -9,7 +9,7 @@ A modern, **Neovim-inspired** terminal code editor with a built-in **Gemini AI a
 - **Command Mode** - `:w`, `:q`, `:wq`, `:q!`, `:e <file>`, `:<line>` jump
 - **Live Search** - `/` to search, `n`/`N` to navigate matches
 - **File Tree with Icons** - Collapsible sidebar with filetype icons and sorted entries
-- **Gemini AI Agent** - Chat with Google Gemini about your code and request refactors
+- **AI Agent** - Chat with Google Gemini, OpenAI, Claude, or OpenRouter about your code and request refactors
 - **Neovim-Style Status Line** - lualine-inspired bar showing mode, filename, modified state, and filetype
 - **Welcome Screen** - ASCII art splash on startup (like alpha.nvim)
 - **Configurable** - Full TOML config for colors, keys, AI, and commands
@@ -32,11 +32,20 @@ go build -o boba-text.exe .
 
 ## AI Agent Setup - In progress
 
-Set your Gemini API key to enable the built-in AI assistant:
+Set the API key env var for your chosen provider:
 
 ```powershell
+# gemini
 $env:GEMINI_API_KEY = "your-api-key-here"
+# openai
+$env:OPENAI_API_KEY = "your-api-key-here"
+# claude
+$env:ANTHROPIC_API_KEY = "your-api-key-here"
+# openrouter
+$env:OPENROUTER_API_KEY = "your-api-key-here"
 ```
+
+Then set `provider` and `model` in the `[ai]` section of your config (see Configuration below).
 
 ## Keybindings
 
@@ -112,7 +121,7 @@ $env:GEMINI_API_KEY = "your-api-key-here"
 - **TUI Framework**: [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 - **Styling**: [Lipgloss](https://github.com/charmbracelet/lipgloss)
 - **Components**: [Bubbles](https://github.com/charmbracelet/bubbles)
-- **AI**: [Google Gemini API](https://ai.google.dev/)
+- **AI**: [Google Gemini](https://ai.google.dev/), [OpenAI](https://openai.com/), [Anthropic Claude](https://www.anthropic.com/), [OpenRouter](https://openrouter.ai/)
 
 ## Configuration
 
@@ -150,6 +159,7 @@ editor_command_run = "enter"
 agent_send = "enter"
 
 [ai]
+provider = "gemini"
 name = "Gemini"
 model = "gemini-2.0-flash"
 

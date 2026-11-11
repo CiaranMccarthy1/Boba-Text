@@ -60,6 +60,8 @@ type Keys struct {
 }
 
 type AI struct {
+	Provider string `toml:"provider"`
+
 	Name string `toml:"name"`
 
 	Model string `toml:"model"`
@@ -118,8 +120,9 @@ func DefaultConfig() Config {
 			AgentSend:         "enter",
 		},
 		AI: AI{
-			Name:  "Agent",
-			Model: "default",
+			Provider: "gemini",
+			Name:     "Agent",
+			Model:    "gemini-2.0-flash",
 		},
 		Commands: Commands{
 			Save: []string{"w", "s", "save", "write"},
@@ -132,40 +135,35 @@ func DefaultConfig() Config {
 
 func Load() Config {
 
-	var paths []string
-
 	configDir, err := os.UserConfigDir()
-	if err == nil {
-		paths = append(paths, filepath.Join(configDir, "boba-text", "config.toml"))
-	}
 
-	for _, path := range paths {
+	if err != nil {
 
-		if _, err := os.Stat(path); err == nil {
-
-			var cfg Config
-
-			defaults := DefaultConfig()
-
-			cfg = defaults
-
-			// Unmarshal over defaults (this is a simple way, though slightly imperfect for deep structs, works here)
-
-			if _, err := toml.DecodeFile(path, &cfg); err == nil {
-
-				return cfg
-
-			} else {
-
-				fmt.Fprintf(os.Stderr, "boba-text: ignoring invalid config %s: %v\n", path, err)
-
-			}
-
-		}
+		return DefaultConfig()
 
 	}
 
-	return DefaultConfig()
+	path := filepath.Join(configDir, "boba-text", "config.toml")
+
+	if _, err := os.Stat(path); err != nil {
+
+		return DefaultConfig()
+
+	}
+
+	cfg := DefaultConfig()
+
+	// Unmarshal over defaults (this is a simple way, though slightly imperfect for deep structs, works here)
+
+	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+
+		fmt.Fprintf(os.Stderr, "boba-text: ignoring invalid config %s: %v\n", path, err)
+
+		return DefaultConfig()
+
+	}
+
+	return cfg
 
 }
 

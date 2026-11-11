@@ -114,7 +114,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.resizePanes()
 
-	case GeminiResponseMsg:
+	case AIResponseMsg:
 		// Always deliver to the agent, even if the user moved focus away mid-request.
 		m.agent, cmd = m.agent.Update(msg)
 		return m, cmd
@@ -154,19 +154,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) resizePanes() {
-	treeWidth := 0
+	// Content pane width: terminal minus the rounded border (2), minus the
+	// tree column (30) and its StyleFileTree padding (1,2) when shown.
+	contentWidth := m.width - 2
 	if m.showTree {
-		treeWidth = 30
-		m.fileTree.width = treeWidth
+		contentWidth -= 34
+		m.fileTree.width = 30
 		m.fileTree.height = m.height - 2
 	}
-
-	padding := 4
-	if !m.showTree {
-		padding = 2
-	}
-
-	contentWidth := m.width - treeWidth - padding
 	if contentWidth < 10 {
 		contentWidth = 10
 	}
@@ -239,24 +234,11 @@ func (m Model) View() string {
 		borderColor = ColorSubText
 	}
 
-	treeWidth := 0
-	if m.showTree {
-		treeWidth = 30
-	}
-	padding := 4
-	if !m.showTree {
-		padding = 2
-	}
-	contentWidth := m.width - treeWidth - padding
-	if contentWidth < 10 {
-		contentWidth = 10
-	}
-
 	contentStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
-		Width(contentWidth).
-		Height(m.height - 2)
+		Width(m.editor.width).
+		Height(m.editor.height)
 
 	if m.showTree {
 		return lipgloss.JoinHorizontal(

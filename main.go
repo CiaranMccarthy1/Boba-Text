@@ -1,51 +1,39 @@
 package main
 
-
-
 import (
+	"fmt"
 
-    "fmt"
+	"os"
 
-    "os"
+	"github.com/CiaranMccarthy1/boba-text/pkg/config"
 
+	"github.com/CiaranMccarthy1/boba-text/pkg/tui"
 
-
-    "github.com/CiaranMccarthy1/boba-text/pkg/config"
-
-    "github.com/CiaranMccarthy1/boba-text/pkg/tui"
-
-
-
-    tea "github.com/charmbracelet/bubbletea"
-
+	tea "github.com/charmbracelet/bubbletea"
 )
-
-
 
 func main() {
 
-    cwd, err := os.Getwd()
+	cwd, err := os.Getwd()
 
-    if err != nil {
+	if err != nil {
 
-        fmt.Printf("Error getting cwd: %v\n", err)
+		fmt.Printf("Error getting cwd: %v\n", err)
 
-        os.Exit(1)
+		os.Exit(1)
 
-    }
+	}
 
+	cfg := config.Load()
 
+	p := tea.NewProgram(tui.InitialModel(cwd, cfg), tea.WithAltScreen())
 
-    cfg := config.Load()
+	if _, err := p.Run(); err != nil {
 
-    p := tea.NewProgram(tui.InitialModel(cwd, cfg), tea.WithAltScreen())
+		fmt.Printf("Alas, there's been an error: %v", err)
 
-    if _, err := p.Run(); err != nil {
+		os.Exit(1)
 
-        fmt.Printf("Alas, there's been an error: %v", err)
-
-        os.Exit(1)
-
-    }
+	}
 
 }

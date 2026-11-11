@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CiaranMccarthy1/boba-text/pkg/ai"
 	"github.com/CiaranMccarthy1/boba-text/pkg/config"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -11,8 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// GeminiResponseMsg carries the AI response back to the TUI from the async call.
-type GeminiResponseMsg struct {
+// AIResponseMsg carries the AI response back to the TUI from the async call.
+type AIResponseMsg struct {
 	Response string
 	Err      error
 }
@@ -35,7 +36,7 @@ type AgentModel struct {
 // NewAgent creates a new AI agent model with the given configuration.
 func NewAgent(aiConfig config.AI, keyConfig config.Keys) AgentModel {
 	ta := textarea.New()
-	ta.Placeholder = "Ask Gemini about your code..."
+	ta.Placeholder = "Ask your AI assistant..."
 	ta.Focus()
 	ta.CharLimit = 0
 	ta.SetHeight(3)
@@ -44,14 +45,13 @@ func NewAgent(aiConfig config.AI, keyConfig config.Keys) AgentModel {
 	vp := viewport.New(0, 0)
 
 	welcome := lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true).Render("Boba AI Agent") + "\n\n"
-	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("Powered by Google Gemini\n")
-	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("Ask questions about your code, request refactors,\n")
-	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("or ask me to rewrite files.\n\n")
+	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("Ask questions about your code and request refactors.\n\n")
 	welcome += lipgloss.NewStyle().Foreground(ColorAccent).Render("Tips:\n")
 	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  • \"explain this code\" — analyzes the current file\n")
-	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  • \"refactor for readability\" — suggests improvements\n")
-	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  • \"rewrite <file>\" — proposes changes (requires approval)\n\n")
-	welcome += lipgloss.NewStyle().Foreground(ColorWarning).Render("Set GEMINI_API_KEY env var to enable AI features.\n")
+	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  • \"refactor for readability\" — suggests improvements\n\n")
+	welcome += lipgloss.NewStyle().Foreground(ColorWarning).Render("Set one API key env var to enable AI:\n")
+	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  gemini: GEMINI_API_KEY, openai: OPENAI_API_KEY,\n")
+	welcome += lipgloss.NewStyle().Foreground(ColorSubText).Render("  claude: ANTHROPIC_API_KEY, openrouter: OPENROUTER_API_KEY\n")
 
 	vp.SetContent(welcome)
 
@@ -81,7 +81,7 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 	m.viewport, vpCmd = m.viewport.Update(msg)
 
 	switch msg := msg.(type) {
-	case GeminiResponseMsg:
+	case AIResponseMsg:
 		m.waiting = false
 		if msg.Err != nil {
 			errMsg := m.errorStyle.Render("Error: ") + msg.Err.Error()
@@ -89,7 +89,7 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 		} else {
 			aiName := m.config.Name
 			if aiName == "" {
-				aiName = "Gemini"
+				aiName = "AI"
 			}
 			aiMsg := m.aiStyle.Render(aiName+": ") + msg.Response
 			m.messages = append(m.messages, aiMsg)
@@ -107,13 +107,16 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 			userMsg := m.senderStyle.Render("You: ") + userInput
 			m.messages = append(m.messages, userMsg)
 
-			// Send to Gemini API
+			// Send to the configured AI provider asynchronously
 			m.waiting = true
 			m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
 			m.textarea.Reset()
 			m.viewport.GotoBottom()
 
-			return m, tea.Batch(tiCmd, vpCmd, sendToGemini(userInput, m.currentFile))
+			return m, tea.Batch(tiCmd, vpCmd, func() tea.Msg {
+				resp, err := ai.Send(m.config.Provider, m.config.Model, m.currentFile, userInput)
+				return AIResponseMsg{Response: resp, Err: err}
+			})
 		}
 	}
 

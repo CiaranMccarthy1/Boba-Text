@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -270,9 +271,9 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 	case val == "wq" || val == "x":
 		m.saveFile()
 		return tea.Quit
-	case contains(m.commands.Save, val):
+	case slices.Contains(m.commands.Save, val):
 		return m.saveFile()
-	case contains(m.commands.Quit, val):
+	case slices.Contains(m.commands.Quit, val):
 		if m.modified {
 			m.msg = "No write since last change (use :q!)"
 			return nil
@@ -477,16 +478,6 @@ func byteIndexToRuneIndex(s string, byteIndex int) int {
 		return utf8.RuneCountInString(s)
 	}
 	return utf8.RuneCountInString(s[:byteIndex])
-}
-
-// contains checks if a string value exists in a slice.
-func contains(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
 }
 
 // View renders the editor as a string.
