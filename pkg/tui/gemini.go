@@ -14,6 +14,9 @@ import (
 
 const geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
+// geminiMaxFileBytes caps how much file content is included in one prompt.
+const geminiMaxFileBytes = 50 * 1024
+
 // geminiRequest is the request body for the Gemini API.
 type geminiRequest struct {
 	Contents []geminiContent `json:"contents"`
@@ -56,9 +59,13 @@ func sendToGemini(prompt string, currentFile string) tea.Cmd {
 		if currentFile != "" {
 			content, err := os.ReadFile(currentFile)
 			if err == nil {
+				snippet := content
+				if len(snippet) > geminiMaxFileBytes {
+					snippet = snippet[:geminiMaxFileBytes]
+				}
 				fullPrompt = fmt.Sprintf(
 					"The user is editing the file '%s' with this content:\n```\n%s\n```\n\nUser request: %s\n\nRespond concisely. If suggesting code changes, show the relevant diff or snippet.",
-					currentFile, string(content), prompt,
+					currentFile, string(snippet), prompt,
 				)
 			}
 		}

@@ -4,12 +4,12 @@ A modern, **Neovim-inspired** terminal code editor with a built-in **Gemini AI a
 
 ## Features
 
-- **Neovim-Style Modal Editing** - Normal, Insert, Command, Search, and Visual modes with proper Vim keybindings
+- **Neovim-Style Modal Editing** - Normal, Insert, Command, and Search modes with proper Vim keybindings
 - **Vim Motions** - `h/j/k/l`, `w/b`, `0/$`, `G`, `o/O`, `A/I`, and more
 - **Command Mode** - `:w`, `:q`, `:wq`, `:q!`, `:e <file>`, `:<line>` jump
 - **Live Search** - `/` to search, `n`/`N` to navigate matches
 - **File Tree with Icons** - Collapsible sidebar with filetype icons and sorted entries
-- **Gemini AI Agent** - Chat with Google Gemini about your code, request refactors, and approve AI-generated file rewrites
+- **Gemini AI Agent** - Chat with Google Gemini about your code and request refactors
 - **Neovim-Style Status Line** - lualine-inspired bar showing mode, filename, modified state, and filetype
 - **Welcome Screen** - ASCII art splash on startup (like alpha.nvim)
 - **Configurable** - Full TOML config for colors, keys, AI, and commands
@@ -105,7 +105,6 @@ $env:GEMINI_API_KEY = "your-api-key-here"
 | Key | Action |
 | :--- | :--- |
 | `Enter` | Send message to Gemini |
-| `y` / `n` | Approve / Reject file rewrite |
 
 ## Stack
 

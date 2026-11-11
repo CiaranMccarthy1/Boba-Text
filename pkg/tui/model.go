@@ -64,6 +64,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case m.keys.Quit:
+			if m.editor.modified {
+				m.editor.msg = "No write since last change (use :q!)"
+				return m, nil
+			}
 			return m, tea.Quit
 		case m.keys.CycleFocus:
 			if m.focus == FocusEditor && m.editor.mode == ModeInsert {
@@ -115,11 +119,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.resizePanes()
 
+	case GeminiResponseMsg:
+		// Always deliver to the agent, even if the user moved focus away mid-request.
+		m.agent, cmd = m.agent.Update(msg)
+		return m, cmd
+
 	case OpenFileMsg:
 		m.showWelcome = false
 		content, err := os.ReadFile(msg.Path)
 		if err == nil {
 			m.editor.SetContent(string(content), msg.Path)
+			m.agent.SetCurrentFile(msg.Path)
 			m.focus = FocusEditor
 		}
 	}

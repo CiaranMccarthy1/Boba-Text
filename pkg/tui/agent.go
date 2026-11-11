@@ -11,12 +11,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// PendingRewrite holds a proposed file rewrite from the AI awaiting user approval.
-type PendingRewrite struct {
-	FilePath string
-	Content  string
-}
-
 // GeminiResponseMsg carries the AI response back to the TUI from the async call.
 type GeminiResponseMsg struct {
 	Response string
@@ -24,19 +18,18 @@ type GeminiResponseMsg struct {
 }
 
 type AgentModel struct {
-	viewport       viewport.Model
-	textarea       textarea.Model
-	messages       []string
-	senderStyle    lipgloss.Style
-	aiStyle        lipgloss.Style
-	errorStyle     lipgloss.Style
-	width          int
-	height         int
-	config         config.AI
-	keys           config.Keys
-	waiting        bool
-	pendingRewrite *PendingRewrite
-	currentFile    string
+	viewport    viewport.Model
+	textarea    textarea.Model
+	messages    []string
+	senderStyle lipgloss.Style
+	aiStyle     lipgloss.Style
+	errorStyle  lipgloss.Style
+	width       int
+	height      int
+	config      config.AI
+	keys        config.Keys
+	waiting     bool
+	currentFile string
 }
 
 // NewAgent creates a new AI agent model with the given configuration.
@@ -105,28 +98,6 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 		m.viewport.GotoBottom()
 
 	case tea.KeyMsg:
-		// Handle pending rewrite approval
-		if m.pendingRewrite != nil {
-			switch msg.String() {
-			case "y", "Y":
-				// User approved the rewrite
-				m.messages = append(m.messages,
-					m.aiStyle.Render("Rewrite approved — file saved: ")+m.pendingRewrite.FilePath)
-				m.pendingRewrite = nil
-				m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
-				m.viewport.GotoBottom()
-				return m, tea.Batch(tiCmd, vpCmd)
-			case "n", "N":
-				m.messages = append(m.messages,
-					m.errorStyle.Render("Rewrite rejected"))
-				m.pendingRewrite = nil
-				m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
-				m.viewport.GotoBottom()
-				return m, tea.Batch(tiCmd, vpCmd)
-			}
-			return m, tea.Batch(tiCmd, vpCmd)
-		}
-
 		switch msg.String() {
 		case m.keys.AgentSend:
 			if m.textarea.Value() == "" || m.waiting {
@@ -155,10 +126,6 @@ func (m AgentModel) View() string {
 	var statusLine string
 	if m.waiting {
 		statusLine = StyleDim.Render("Generating...")
-	} else if m.pendingRewrite != nil {
-		statusLine = StyleModeCommand.Render(" APPROVE REWRITE? [y/n] ") + " " + m.pendingRewrite.FilePath
-	} else {
-		statusLine = ""
 	}
 
 	return StyleAgent.Render(

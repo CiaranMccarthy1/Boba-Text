@@ -20,7 +20,6 @@ const (
 	ModeNormal EditorMode = iota
 	ModeInsert
 	ModeCommand
-	ModeVisual
 	ModeSearch
 )
 
@@ -271,6 +270,10 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 	case contains(m.commands.Save, val):
 		return m.saveFile()
 	case contains(m.commands.Quit, val):
+		if m.modified {
+			m.msg = "No write since last change (use :q!)"
+			return nil
+		}
 		return tea.Quit
 	case val == "wq" || val == "x":
 		m.saveFile()
@@ -503,8 +506,6 @@ func (m EditorModel) View() string {
 		switch m.mode {
 		case ModeInsert:
 			modeStyle = StyleModeInsert
-		case ModeVisual:
-			modeStyle = StyleModeVisual
 		default:
 			modeStyle = StyleModeNormal
 		}
@@ -574,8 +575,6 @@ func modeName(m EditorMode) string {
 	switch m {
 	case ModeInsert:
 		return "INSERT"
-	case ModeVisual:
-		return "VISUAL"
 	case ModeCommand:
 		return "COMMAND"
 	case ModeSearch:
