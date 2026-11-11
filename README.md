@@ -154,7 +154,7 @@ name = "Gemini"
 model = "gemini-2.0-flash"
 
 [commands]
-save = ["w", "s", "save", "x"]
+save = ["w", "s", "save"]
 quit = ["q", "quit", "exit"]
 ```
 

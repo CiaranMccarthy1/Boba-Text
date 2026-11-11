@@ -267,6 +267,9 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 	}
 
 	switch {
+	case val == "wq" || val == "x":
+		m.saveFile()
+		return tea.Quit
 	case contains(m.commands.Save, val):
 		return m.saveFile()
 	case contains(m.commands.Quit, val):
@@ -274,9 +277,6 @@ func (m *EditorModel) executeCommand(val string) tea.Cmd {
 			m.msg = "No write since last change (use :q!)"
 			return nil
 		}
-		return tea.Quit
-	case val == "wq" || val == "x":
-		m.saveFile()
 		return tea.Quit
 	case val == "q!":
 		return tea.Quit

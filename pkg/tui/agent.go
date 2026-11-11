@@ -109,8 +109,6 @@ func (m AgentModel) Update(msg tea.Msg) (AgentModel, tea.Cmd) {
 
 			// Send to Gemini API
 			m.waiting = true
-			waitMsg := StyleDim.Render("⏳ Waiting for Gemini response...")
-			m.messages = append(m.messages, waitMsg)
 			m.viewport.SetContent(strings.Join(m.messages, "\n\n"))
 			m.textarea.Reset()
 			m.viewport.GotoBottom()

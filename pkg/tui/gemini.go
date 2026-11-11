@@ -81,13 +81,23 @@ func sendToGemini(prompt string, currentFile string) tea.Cmd {
 			return GeminiResponseMsg{Err: fmt.Errorf("failed to marshal request: %w", err)}
 		}
 
-		url := geminiEndpoint + "?key=" + apiKey
+		req, err := http.NewRequest(http.MethodPost, geminiEndpoint, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return GeminiResponseMsg{Err: fmt.Errorf("failed to build request: %w", err)}
+		}
+		req.Header.Set("Content-Type", "application/json")
+		// Header instead of URL query so the key can't leak into proxy/server logs.
+		req.Header.Set("x-goog-api-key", apiKey)
 		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Post(url, "application/json", bytes.NewReader(bodyBytes))
+		resp, err := client.Do(req)
 		if err != nil {
 			return GeminiResponseMsg{Err: fmt.Errorf("API request failed: %w", err)}
 		}
 		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return GeminiResponseMsg{Err: fmt.Errorf("Gemini API HTTP %d", resp.StatusCode)}
+		}
 
 		respBytes, err := io.ReadAll(resp.Body)
 		if err != nil {

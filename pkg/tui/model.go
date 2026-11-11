@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// maxOpenFileBytes caps files opened in the editor to keep the TUI responsive.
+const maxOpenFileBytes = 10 * 1024 * 1024
 
 type Focus int
 
@@ -77,16 +81,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case m.keys.Save:
-			if m.editor.filename != "" {
-				err := os.WriteFile(m.editor.filename, []byte(m.editor.textarea.Value()), 0644)
-				if err != nil {
-					m.editor.msg = "Error saving: " + err.Error()
-				} else {
-					m.editor.msg = "Saved: " + m.editor.filename
-				}
-			} else {
-				m.editor.msg = "No filename set!"
-			}
+			m.editor.saveFile()
 			return m, nil
 
 		case m.keys.ToggleTree:
@@ -126,12 +121,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case OpenFileMsg:
 		m.showWelcome = false
-		content, err := os.ReadFile(msg.Path)
-		if err == nil {
-			m.editor.SetContent(string(content), msg.Path)
-			m.agent.SetCurrentFile(msg.Path)
-			m.focus = FocusEditor
+		m.focus = FocusEditor
+		info, err := os.Stat(msg.Path)
+		if err == nil && info.Size() > maxOpenFileBytes {
+			m.editor.msg = fmt.Sprintf("File too large (%d MB): %s", info.Size()/(1024*1024), msg.Path)
+			break
 		}
+		content, err := os.ReadFile(msg.Path)
+		if err != nil {
+			m.editor.msg = "Cannot open: " + err.Error()
+			break
+		}
+		m.editor.SetContent(string(content), msg.Path)
+		m.agent.SetCurrentFile(msg.Path)
 	}
 
 	switch m.focus {

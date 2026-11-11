@@ -35,6 +35,7 @@ type FileTreeModel struct {
 	selected string
 	width    int
 	height   int
+	msg      string
 	keys     config.Keys
 }
 
@@ -51,7 +52,13 @@ func NewFileTree(startPath string, keyConfig config.Keys) FileTreeModel {
 // loadFiles loads directory entries from the current path and adds parent entry if not at root.
 // Sorts directories first, then files alphabetically.
 func (m *FileTreeModel) loadFiles() {
-	entries, _ := os.ReadDir(m.path)
+	entries, err := os.ReadDir(m.path)
+	if err != nil {
+		m.files = nil
+		m.msg = err.Error()
+		return
+	}
+	m.msg = ""
 
 	// Sort: directories first, then files, alphabetical within each group
 	sort.Slice(entries, func(i, j int) bool {
@@ -182,6 +189,10 @@ func (m FileTreeModel) View() string {
 		sepWidth = 1
 	}
 	s.WriteString(StyleDim.Render(" " + strings.Repeat("─", sepWidth)) + "\n")
+
+	if m.msg != "" {
+		s.WriteString(StyleDim.Render(" " + m.msg) + "\n")
+	}
 
 	visible := m.height - 4
 	if visible < 1 {

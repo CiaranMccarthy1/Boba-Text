@@ -58,7 +58,7 @@ model = "gpt-4"
 
 [commands]
 
-save = ["w", "s", "save", "x"]
+save = ["w", "s", "save"]
 
 quit = ["q", "quit", "exit"]
 

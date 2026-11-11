@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"path/filepath"
@@ -153,6 +154,10 @@ func Load() Config {
 			if _, err := toml.DecodeFile(path, &cfg); err == nil {
 
 				return cfg
+
+			} else {
+
+				fmt.Fprintf(os.Stderr, "boba-text: ignoring invalid config %s: %v\n", path, err)
 
 			}
 
